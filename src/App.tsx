@@ -162,53 +162,56 @@ function MainEditor() {
         />
       </div>
 
-      {/* Right-side Action Buttons */}
-      <div className="absolute top-4 right-[280px] z-20 flex items-center gap-2 pointer-events-auto">
-        <button
-          onClick={() => setIsDashboardOpen(true)}
-          className="p-2 rounded-lg border bg-slate-800/80 border-slate-700/50 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-all"
-          title="Board Manager"
-        >
-          <HardDrive className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => setIsDiagramGeneratorOpen(true)}
-          className="p-2 rounded-lg border bg-slate-800/80 border-slate-700/50 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-all"
-          title="Live Code-to-Diagram"
-        >
-          <Sparkles className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => setIsTemplatePanelOpen(!isTemplatePanelOpen)}
-          className={`p-2 rounded-lg border transition-all ${
-            isTemplatePanelOpen
-              ? 'bg-blue-500/20 border-blue-500/50 text-blue-400'
-              : 'bg-slate-800/80 border-slate-700/50 text-slate-400 hover:text-slate-200 hover:border-slate-600'
-          }`}
-          title="Templates"
-        >
-          <Boxes className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => setIsRoomManagerOpen(true)}
-          className={`p-2 rounded-lg border transition-all ${
-            collab.connectionStatus === 'connected'
-              ? 'bg-green-500/20 border-green-500/50 text-green-400'
-              : 'bg-slate-800/80 border-slate-700/50 text-slate-400 hover:text-slate-200 hover:border-slate-600'
-          }`}
-          title="Collaboration"
-        >
-          <Users className="w-4 h-4" />
-        </button>
-      </div>
+      {/* Top-Right Unified Controls Panel */}
+      <div className="absolute top-4 right-4 z-20 flex items-center gap-3 pointer-events-auto">
+        {/* Right-side Action Buttons */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsDashboardOpen(true)}
+            className="p-2 rounded-lg border bg-slate-800/80 border-slate-700/50 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-all"
+            title="Board Manager"
+          >
+            <HardDrive className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setIsDiagramGeneratorOpen(true)}
+            className="p-2 rounded-lg border bg-slate-800/80 border-slate-700/50 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-all"
+            title="Live Code-to-Diagram"
+          >
+            <Sparkles className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setIsTemplatePanelOpen(!isTemplatePanelOpen)}
+            className={`p-2 rounded-lg border transition-all ${
+              isTemplatePanelOpen
+                ? 'bg-blue-500/20 border-blue-500/50 text-blue-400'
+                : 'bg-slate-800/80 border-slate-700/50 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+            }`}
+            title="Templates"
+          >
+            <Boxes className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setIsRoomManagerOpen(true)}
+            className={`p-2 rounded-lg border transition-all ${
+              collab.connectionStatus === 'connected'
+                ? 'bg-green-500/20 border-green-500/50 text-green-400'
+                : 'bg-slate-800/80 border-slate-700/50 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+            }`}
+            title="Collaboration"
+          >
+            <Users className="w-4 h-4" />
+          </button>
+        </div>
 
-      {/* Presence Bar */}
-      <PresenceBar
-        users={collab.remoteUsers}
-        connectionStatus={collab.connectionStatus}
-        currentClientId={collab.clientId}
-        roomCode={collab.roomCode}
-      />
+        {/* Presence Bar */}
+        <PresenceBar
+          users={collab.remoteUsers}
+          connectionStatus={collab.connectionStatus}
+          currentClientId={collab.clientId}
+          roomCode={collab.roomCode}
+        />
+      </div>
 
       {/* Remote Cursors */}
       <RemoteCursors

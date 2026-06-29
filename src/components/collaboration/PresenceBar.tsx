@@ -25,7 +25,7 @@ export const PresenceBar: React.FC<Props> = ({ users, connectionStatus, currentC
   };
 
   return (
-    <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+    <div className="flex items-center gap-2">
       {/* Room Code Badge */}
       {roomCode && connectionStatus === 'connected' && (
         <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/50 backdrop-blur">
