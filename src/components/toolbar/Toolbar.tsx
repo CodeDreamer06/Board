@@ -149,7 +149,7 @@ export const Toolbar: React.FC = () => {
   };
 
   return (
-    <div className="absolute top-4 left-4 right-4 flex flex-wrap gap-4 items-center justify-between pointer-events-none z-10">
+    <div className="absolute top-4 left-4 right-4 flex flex-wrap gap-4 items-center justify-start pointer-events-none z-10">
       
       {/* 1. Main Tools Panel */}
       <div className="bg-slate-800/90 dark:bg-slate-900/90 border border-slate-700/60 backdrop-blur rounded-xl p-1.5 shadow-xl flex items-center gap-1 pointer-events-auto">
