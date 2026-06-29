@@ -4,7 +4,7 @@ import {
   Search, Square, Circle, Minus, ArrowRight, Type, StickyNote,
   Link2, Pencil, Undo2, Redo2, Trash2, Group, Ungroup, Sun, Moon,
   Grid3X3, ZoomIn, ZoomOut, Download, FileJson, Image as ImageIcon,
-  Code2, Copy, Layers, ChevronRight, MousePointer2
+  Code2, Copy, Layers, ChevronRight, MousePointer2, HardDrive, Sparkles
 } from 'lucide-react';
 
 interface Command {
@@ -20,9 +20,17 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onAddCodeBlock?: () => void;
+  onOpenDashboard?: () => void;
+  onOpenDiagramGenerator?: () => void;
 }
 
-export const CommandPalette: React.FC<Props> = ({ isOpen, onClose, onAddCodeBlock }) => {
+export const CommandPalette: React.FC<Props> = ({
+  isOpen,
+  onClose,
+  onAddCodeBlock,
+  onOpenDashboard,
+  onOpenDiagramGenerator
+}) => {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -54,6 +62,23 @@ export const CommandPalette: React.FC<Props> = ({ isOpen, onClose, onAddCodeBloc
     { id: 'code', name: 'Add Code Block', shortcut: 'K', icon: <Code2 className={iconClass}/>, category: 'Tools',
       action: () => onAddCodeBlock?.() },
 
+    // Core Modals
+    { id: 'dashboard', name: 'Open Board Manager', shortcut: '⌘H', icon: <HardDrive className={iconClass}/>, category: 'Tools',
+      action: () => onOpenDashboard?.() },
+    { id: 'diagram-gen', name: 'Open Diagram Generator', shortcut: '⌘I', icon: <Sparkles className={iconClass}/>, category: 'Tools',
+      action: () => onOpenDiagramGenerator?.() },
+
+    // Dev Pipeline Chaining/Executing
+    { id: 'run-code', name: 'Run Selected Code Block', icon: <Code2 className={iconClass}/>, category: 'Dev Pipeline',
+      action: () => {
+        const active = ctx.shapes.find(s => s.type === 'code' && ctx.selectedIds.includes(s.id));
+        if (active) {
+          window.dispatchEvent(new CustomEvent('devboard-execute-code', { detail: { shapeId: active.id } }));
+        } else {
+          alert('Please select a Code Block shape first.');
+        }
+      }},
+
     // Edit
     { id: 'undo', name: 'Undo', shortcut: '⌘Z', icon: <Undo2 className={iconClass}/>, category: 'Edit',
       action: () => ctx.undo() },
@@ -82,8 +107,20 @@ export const CommandPalette: React.FC<Props> = ({ isOpen, onClose, onAddCodeBloc
     // View
     { id: 'darkmode', name: 'Toggle Dark Mode', icon: ctx.theme === 'dark' ? <Sun className={iconClass}/> : <Moon className={iconClass}/>, category: 'View',
       action: () => ctx.setTheme(ctx.theme === 'dark' ? 'light' : 'dark') },
-    { id: 'grid', name: 'Toggle Snap to Grid', icon: <Grid3X3 className={iconClass}/>, category: 'View',
+    { id: 'snap-grid', name: 'Toggle Snap to Grid', icon: <Grid3X3 className={iconClass}/>, category: 'View',
       action: () => ctx.setSnapToGrid(!ctx.snapToGrid) },
+    { id: 'bg-pattern', name: 'Cycle Grid Background Pattern', icon: <Grid3X3 className={iconClass}/>, category: 'View',
+      action: () => {
+        const types: Array<'dots' | 'grid' | 'isometric' | 'gradient' | 'none'> = ['dots', 'grid', 'isometric', 'gradient', 'none'];
+        const nextIdx = (types.indexOf(ctx.bgType) + 1) % types.length;
+        ctx.setBgType(types[nextIdx]);
+      }},
+    { id: 'bg-theme', name: 'Cycle Board Theme Aesthetic', icon: <Layers className={iconClass}/>, category: 'View',
+      action: () => {
+        const themes: Array<'corporate' | 'blueprint' | 'neon' | 'sketch' | 'minimal'> = ['corporate', 'blueprint', 'neon', 'sketch', 'minimal'];
+        const nextIdx = (themes.indexOf(ctx.bgTheme) + 1) % themes.length;
+        ctx.setBgTheme(themes[nextIdx]);
+      }},
     { id: 'zoomin', name: 'Zoom In', shortcut: '⌘=', icon: <ZoomIn className={iconClass}/>, category: 'View',
       action: () => ctx.setViewport(v => ({ ...v, zoom: Math.min(v.zoom * 1.25, 20) })) },
     { id: 'zoomout', name: 'Zoom Out', shortcut: '⌘-', icon: <ZoomOut className={iconClass}/>, category: 'View',
@@ -101,7 +138,7 @@ export const CommandPalette: React.FC<Props> = ({ isOpen, onClose, onAddCodeBloc
         const data = JSON.stringify({ shapes: ctx.shapes, version: '1.0' }, null, 2);
         downloadFile(data, 'devboard-export.json', 'application/json');
       }},
-  ], [ctx, onAddCodeBlock]);
+  ], [ctx, onAddCodeBlock, onOpenDashboard, onOpenDiagramGenerator]);
 
   const filteredCommands = useMemo(() => {
     if (!query) return commands;
@@ -112,10 +149,8 @@ export const CommandPalette: React.FC<Props> = ({ isOpen, onClose, onAddCodeBloc
     );
   }, [commands, query]);
 
-  // Reset selection when query changes
   useEffect(() => { setSelectedIndex(0); }, [query]);
 
-  // Focus input on open
   useEffect(() => {
     if (isOpen) {
       setQuery('');
@@ -124,7 +159,6 @@ export const CommandPalette: React.FC<Props> = ({ isOpen, onClose, onAddCodeBloc
     }
   }, [isOpen]);
 
-  // Scroll selected item into view
   useEffect(() => {
     const list = listRef.current;
     if (!list) return;
@@ -156,7 +190,6 @@ export const CommandPalette: React.FC<Props> = ({ isOpen, onClose, onAddCodeBloc
 
   if (!isOpen) return null;
 
-  // Group commands by category
   const grouped = new Map<string, Command[]>();
   filteredCommands.forEach(cmd => {
     if (!grouped.has(cmd.category)) grouped.set(cmd.category, []);
@@ -257,8 +290,6 @@ export const CommandPalette: React.FC<Props> = ({ isOpen, onClose, onAddCodeBloc
   );
 };
 
-// ──────────────────── Export Helpers ────────────────────
-
 function downloadFile(content: string, filename: string, mimeType: string) {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
@@ -284,7 +315,6 @@ function exportCanvas(format: 'png' | 'svg') {
       URL.revokeObjectURL(url);
     });
   } else if (format === 'svg') {
-    // Basic SVG export - serialize canvas content
     const dataUrl = canvas.toDataURL('image/png');
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}">
       <image href="${dataUrl}" width="${canvas.width}" height="${canvas.height}"/>

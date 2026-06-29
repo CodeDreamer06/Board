@@ -56,6 +56,17 @@ export const BoardDashboard: React.FC<Props> = ({ isOpen, onClose }) => {
     }
   }, [isOpen]);
 
+  // Graceful Escape key close
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleSelectBoard = async (board: BoardSummary) => {

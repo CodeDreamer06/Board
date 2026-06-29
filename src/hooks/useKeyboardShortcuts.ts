@@ -5,6 +5,8 @@ import { ShapeType } from '../types/canvas';
 interface ShortcutHandlers {
   openCommandPalette: () => void;
   onAddCodeBlock: () => void;
+  openDashboard: () => void;
+  openDiagramGenerator: () => void;
 }
 
 export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
@@ -30,6 +32,14 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
           case 'k':
             e.preventDefault();
             handlers.openCommandPalette();
+            return;
+          case 'h':
+            e.preventDefault();
+            handlers.openDashboard();
+            return;
+          case 'i':
+            e.preventDefault();
+            handlers.openDiagramGenerator();
             return;
           case 'z':
             e.preventDefault();

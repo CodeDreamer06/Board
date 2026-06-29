@@ -80,6 +80,8 @@ function MainEditor() {
   const shortcutHandlers = useMemo(() => ({
     openCommandPalette: () => setIsCommandPaletteOpen(true),
     onAddCodeBlock: addCodeBlock,
+    openDashboard: () => setIsDashboardOpen(true),
+    openDiagramGenerator: () => setIsDiagramGeneratorOpen(true),
   }), [addCodeBlock]);
 
   useKeyboardShortcuts(shortcutHandlers);
@@ -255,6 +257,8 @@ function MainEditor() {
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
         onAddCodeBlock={addCodeBlock}
+        onOpenDashboard={() => setIsDashboardOpen(true)}
+        onOpenDiagramGenerator={() => setIsDiagramGeneratorOpen(true)}
       />
 
       {/* Template Panel */}

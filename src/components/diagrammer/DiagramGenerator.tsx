@@ -14,6 +14,17 @@ export const DiagramGenerator: React.FC<Props> = ({ isOpen, onClose }) => {
   const [parserType, setParserType] = useState<'sql' | 'mermaid' | 'sequence' | 'class'>('sql');
   const [error, setError] = useState<string | null>(null);
 
+  // Graceful Escape key close
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleGenerate = () => {
