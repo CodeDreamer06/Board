@@ -31,7 +31,9 @@ export const Canvas: React.FC = () => {
     alignmentGuides,
     setAlignmentGuides,
     addShape,
-    pushHistoryState
+    pushHistoryState,
+    bgType,
+    bgTheme
   } = useCanvas();
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -906,9 +908,43 @@ export const Canvas: React.FC = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // 1. Clear background based on theme
-    ctx.fillStyle = theme === 'dark' ? '#0f172a' : '#f8fafc';
+    // 1. Clear background based on theme and bgTheme
+    let bgColor = theme === 'dark' ? '#0f172a' : '#f8fafc';
+    if (bgTheme === 'blueprint') {
+      bgColor = '#0b132b'; // Deep blueprint blue
+    } else if (bgTheme === 'neon') {
+      bgColor = '#020205'; // Pure dark neon black
+    } else if (bgTheme === 'sketch') {
+      bgColor = '#faf6eb'; // Soft warm cream paper
+    } else if (bgTheme === 'minimal') {
+      bgColor = theme === 'dark' ? '#0a0a0c' : '#ffffff';
+    }
+
+    ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // If gradient type, add a radial gradient highlight in the center
+    if (bgType === 'gradient') {
+      const grad = ctx.createRadialGradient(
+        canvas.width / 2, canvas.height / 2, 10,
+        canvas.width / 2, canvas.height / 2, Math.max(canvas.width, canvas.height) / 1.2
+      );
+      if (bgTheme === 'blueprint') {
+        grad.addColorStop(0, '#1e3a8a');
+        grad.addColorStop(1, '#0b132b');
+      } else if (bgTheme === 'neon') {
+        grad.addColorStop(0, '#1e1b4b');
+        grad.addColorStop(1, '#020205');
+      } else if (bgTheme === 'sketch') {
+        grad.addColorStop(0, '#fffbf0');
+        grad.addColorStop(1, '#eaddc4');
+      } else {
+        grad.addColorStop(0, theme === 'dark' ? '#1e293b' : '#f1f5f9');
+        grad.addColorStop(1, bgColor);
+      }
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
 
     ctx.save();
     
@@ -916,24 +952,67 @@ export const Canvas: React.FC = () => {
     ctx.translate(viewport.x, viewport.y);
     ctx.scale(viewport.zoom, viewport.zoom);
 
-    // 3. Draw Grid
-    const gridSize = 20;
-    const w = canvas.width;
-    const h = canvas.height;
+    // 3. Draw Grid / Background pattern
+    if (bgType !== 'none' && bgType !== 'gradient') {
+      const gridSize = 20;
+      const w = canvas.width;
+      const h = canvas.height;
 
-    const startX = Math.floor(-viewport.x / viewport.zoom / gridSize) * gridSize;
-    const startY = Math.floor(-viewport.y / viewport.zoom / gridSize) * gridSize;
-    const endX = startX + w / viewport.zoom + gridSize;
-    const endY = startY + h / viewport.zoom + gridSize;
+      const startX = Math.floor(-viewport.x / viewport.zoom / gridSize) * gridSize;
+      const startY = Math.floor(-viewport.y / viewport.zoom / gridSize) * gridSize;
+      const endX = startX + w / viewport.zoom + gridSize;
+      const endY = startY + h / viewport.zoom + gridSize;
 
-    ctx.strokeStyle = theme === 'dark' ? '#334155' : '#cbd5e1';
-    ctx.lineWidth = 0.5;
+      let gridColor = theme === 'dark' ? '#334155' : '#cbd5e1';
+      if (bgTheme === 'blueprint') {
+        gridColor = 'rgba(59, 130, 246, 0.2)';
+      } else if (bgTheme === 'neon') {
+        gridColor = 'rgba(139, 92, 246, 0.15)';
+      } else if (bgTheme === 'sketch') {
+        gridColor = 'rgba(180, 83, 9, 0.1)';
+      } else if (bgTheme === 'minimal') {
+        gridColor = theme === 'dark' ? '#1e293b' : '#e2e8f0';
+      }
 
-    // Infinite grid dots or lines (dots look modern)
-    ctx.fillStyle = theme === 'dark' ? '#334155' : '#cbd5e1';
-    for (let x = startX; x < endX; x += gridSize) {
-      for (let y = startY; y < endY; y += gridSize) {
-        ctx.fillRect(x, y, 1.5, 1.5);
+      ctx.strokeStyle = gridColor;
+      ctx.fillStyle = gridColor;
+      ctx.lineWidth = 0.5;
+
+      if (bgType === 'dots') {
+        for (let x = startX; x < endX; x += gridSize) {
+          for (let y = startY; y < endY; y += gridSize) {
+            ctx.fillRect(x, y, 1.5, 1.5);
+          }
+        }
+      } else if (bgType === 'grid') {
+        ctx.beginPath();
+        for (let x = startX; x < endX; x += gridSize) {
+          ctx.moveTo(x, startY);
+          ctx.lineTo(x, endY);
+        }
+        for (let y = startY; y < endY; y += gridSize) {
+          ctx.moveTo(startX, y);
+          ctx.lineTo(endX, y);
+        }
+        ctx.stroke();
+      } else if (bgType === 'isometric') {
+        ctx.beginPath();
+        // Isometric lines
+        for (let x = startX; x < endX; x += gridSize) {
+          ctx.moveTo(x, startY);
+          ctx.lineTo(x, endY);
+        }
+        // Diagonal 1 (30 degrees)
+        for (let x = startX - (endY - startY); x < endX; x += gridSize * 2) {
+          ctx.moveTo(x, startY);
+          ctx.lineTo(x + (endY - startY) / 1.732, endY);
+        }
+        // Diagonal 2 (150 degrees)
+        for (let x = startX; x < endX + (endY - startY); x += gridSize * 2) {
+          ctx.moveTo(x, startY);
+          ctx.lineTo(x - (endY - startY) / 1.732, endY);
+        }
+        ctx.stroke();
       }
     }
 

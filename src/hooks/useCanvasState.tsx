@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { CanvasShape, Viewport, AlignmentGuide, ShapeType } from '../types/canvas';
+import { CanvasShape, Viewport, AlignmentGuide, ShapeType, PresentationSlide } from '../types/canvas';
+
 
 export interface CanvasContextType {
   shapes: CanvasShape[];
@@ -14,6 +15,22 @@ export interface CanvasContextType {
   theme: 'light' | 'dark';
   alignmentGuides: AlignmentGuide[];
   
+  // Board management
+  boardId: string | null;
+  boardName: string;
+  setBoardId: (id: string | null) => void;
+  setBoardName: (name: string) => void;
+  
+  // Backgrounds & styling themes
+  bgType: 'dots' | 'grid' | 'isometric' | 'none' | 'gradient';
+  setBgType: (type: 'dots' | 'grid' | 'isometric' | 'none' | 'gradient') => void;
+  bgTheme: 'corporate' | 'blueprint' | 'neon' | 'sketch' | 'minimal';
+  setBgTheme: (theme: 'corporate' | 'blueprint' | 'neon' | 'sketch' | 'minimal') => void;
+  
+  // Presentation mode slides
+  slides: PresentationSlide[];
+  setSlides: React.Dispatch<React.SetStateAction<PresentationSlide[]>>;
+
   setShapes: React.Dispatch<React.SetStateAction<CanvasShape[]>>;
   setSelectedIds: (ids: string[]) => void;
   setViewport: React.Dispatch<React.SetStateAction<Viewport>>;
@@ -54,6 +71,14 @@ export const CanvasProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [fontSize, setFontSize] = useState<number>(16);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [alignmentGuides, setAlignmentGuides] = useState<AlignmentGuide[]>([]);
+
+  // Board states
+  const [boardId, setBoardId] = useState<string | null>(null);
+  const [boardName, setBoardName] = useState<string>('Untitled Board');
+  const [bgType, setBgType] = useState<'dots' | 'grid' | 'isometric' | 'none' | 'gradient'>('dots');
+  const [bgTheme, setBgTheme] = useState<'corporate' | 'blueprint' | 'neon' | 'sketch' | 'minimal'>('corporate');
+  const [slides, setSlides] = useState<PresentationSlide[]>([]);
+
 
   // History stack for Undo/Redo
   const [history, setHistory] = useState<CanvasShape[][]>([]);
@@ -242,6 +267,16 @@ export const CanvasProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         fontSize,
         theme,
         alignmentGuides,
+        boardId,
+        boardName,
+        setBoardId,
+        setBoardName,
+        bgType,
+        setBgType,
+        bgTheme,
+        setBgTheme,
+        slides,
+        setSlides,
         setShapes,
         setSelectedIds,
         setViewport,

@@ -92,3 +92,12 @@ export interface AlignmentGuide {
   start: number;
   end: number;
 }
+
+export interface PresentationSlide {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  zoom: number;
+}
+

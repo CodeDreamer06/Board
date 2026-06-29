@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { CanvasProvider, useCanvas } from './hooks/useCanvasState';
 import { Canvas } from './components/canvas/Canvas';
 import { Toolbar } from './components/toolbar/Toolbar';
@@ -8,9 +8,12 @@ import { PresenceBar } from './components/collaboration/PresenceBar';
 import { RemoteCursors } from './components/collaboration/RemoteCursors';
 import { RoomManager } from './components/collaboration/RoomManager';
 import { CodeBlock } from './components/codeblock/CodeBlock';
+import { BoardDashboard } from './components/dashboard/BoardDashboard';
+import { DiagramGenerator } from './components/diagrammer/DiagramGenerator';
+import { StyleSettings } from './components/style/StyleSettings';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useCollaboration } from './hooks/useCollaboration';
-import { Boxes, Users } from 'lucide-react';
+import { Boxes, Users, HardDrive, Sparkles } from 'lucide-react';
 
 function MainEditor() {
   const ctx = useCanvas();
@@ -28,11 +31,13 @@ function MainEditor() {
     ? ctx.shapes.find(s => s.id === editingCodeBlockId)
     : selectedCodeShape;
 
-
-  // UI state
+  // UI modal states
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isTemplatePanelOpen, setIsTemplatePanelOpen] = useState(false);
   const [isRoomManagerOpen, setIsRoomManagerOpen] = useState(false);
+  const [isDashboardOpen, setIsDashboardOpen] = useState(false);
+  const [isDiagramGeneratorOpen, setIsDiagramGeneratorOpen] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
 
   // Collaboration
   const collab = useCollaboration();
@@ -67,6 +72,59 @@ function MainEditor() {
 
   useKeyboardShortcuts(shortcutHandlers);
 
+  // Save board function
+  const saveBoard = useCallback(async () => {
+    if (ctx.shapes.length === 0 && ctx.boardName === 'Untitled Board') return;
+
+    setSaveStatus('saving');
+    let targetId = ctx.boardId;
+    if (!targetId) {
+      targetId = `board_${Math.random().toString(36).substring(2, 10)}`;
+      ctx.setBoardId(targetId);
+    }
+
+    const payload = JSON.stringify({
+      shapes: ctx.shapes,
+      viewport: ctx.viewport,
+      bgType: ctx.bgType,
+      bgTheme: ctx.bgTheme,
+      slides: ctx.slides,
+    });
+
+    try {
+      const tauri = (window as any).__TAURI__;
+      if (tauri?.invoke) {
+        await tauri.invoke('save_board', {
+          id: targetId,
+          name: ctx.boardName,
+          data: payload,
+        });
+      } else {
+        const now = Date.now();
+        const meta = {
+          id: targetId,
+          name: ctx.boardName,
+          updated_at: now,
+          created_at: now,
+        };
+        localStorage.setItem(`devboard_meta_${targetId}`, JSON.stringify(meta));
+        localStorage.setItem(`devboard_data_${targetId}`, payload);
+      }
+      setSaveStatus('saved');
+    } catch (e) {
+      console.error('[DevBoard] Auto-save error', e);
+      setSaveStatus('error');
+    }
+  }, [ctx.boardId, ctx.boardName, ctx.shapes, ctx.viewport, ctx.bgType, ctx.bgTheme, ctx.slides]);
+
+  // Periodic Auto-save hook (every 5 seconds)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      saveBoard();
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [saveBoard]);
+
   return (
     <div
       className={`relative w-screen h-screen flex flex-col overflow-hidden transition-colors duration-200 ${
@@ -74,15 +132,40 @@ function MainEditor() {
       }`}
     >
       {/* Header / Top Title Bar */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-800/80 dark:bg-slate-900/80 border border-slate-700/50 dark:border-slate-800/50 backdrop-blur px-4 py-2 rounded-xl shadow-lg z-10 select-none pointer-events-none flex items-center gap-3">
-        <h1 className="text-sm font-bold bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent pointer-events-auto">
-          DevBoard
-        </h1>
-        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse pointer-events-auto" title="Local-First Active" />
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-800/80 dark:bg-slate-900/80 border border-slate-700/50 dark:border-slate-800/50 backdrop-blur px-4 py-2 rounded-xl shadow-lg z-10 select-none flex items-center gap-3">
+        <input
+          type="text"
+          value={ctx.boardName}
+          onChange={e => ctx.setBoardName(e.target.value)}
+          onBlur={saveBoard}
+          className="text-xs font-bold bg-transparent text-slate-100 outline-none text-center pointer-events-auto w-32 border-b border-transparent focus:border-slate-600 transition-all font-sans"
+          placeholder="Rename board..."
+          title="Click to rename board"
+        />
+        <div
+          className={`w-1.5 h-1.5 rounded-full ${
+            saveStatus === 'saved' ? 'bg-emerald-400' : saveStatus === 'saving' ? 'bg-amber-400 animate-pulse' : 'bg-rose-500'
+          }`}
+          title={saveStatus === 'saved' ? 'Saved (Local-first active)' : saveStatus === 'saving' ? 'Saving...' : 'Save Error'}
+        />
       </div>
 
       {/* Right-side Action Buttons */}
       <div className="absolute top-4 right-[280px] z-20 flex items-center gap-2 pointer-events-auto">
+        <button
+          onClick={() => setIsDashboardOpen(true)}
+          className="p-2 rounded-lg border bg-slate-800/80 border-slate-700/50 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-all"
+          title="Board Manager"
+        >
+          <HardDrive className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => setIsDiagramGeneratorOpen(true)}
+          className="p-2 rounded-lg border bg-slate-800/80 border-slate-700/50 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-all"
+          title="Live Code-to-Diagram"
+        >
+          <Sparkles className="w-4 h-4" />
+        </button>
         <button
           onClick={() => setIsTemplatePanelOpen(!isTemplatePanelOpen)}
           className={`p-2 rounded-lg border transition-all ${
@@ -120,6 +203,9 @@ function MainEditor() {
         cursors={collab.remoteCursors}
         viewport={viewport}
       />
+
+      {/* Style & Background settings */}
+      <StyleSettings />
 
       {/* Floating Toolbar and Styling Panel */}
       <Toolbar />
@@ -163,8 +249,20 @@ function MainEditor() {
         userCount={collab.remoteUsers.length}
       />
 
+      {/* Board List Dashboard */}
+      <BoardDashboard
+        isOpen={isDashboardOpen}
+        onClose={() => setIsDashboardOpen(false)}
+      />
+
+      {/* Live Diagram Generator */}
+      <DiagramGenerator
+        isOpen={isDiagramGeneratorOpen}
+        onClose={() => setIsDiagramGeneratorOpen(false)}
+      />
+
       {/* Keyboard Shortcut Hint */}
-      <div className="absolute bottom-4 left-4 z-10 text-[10px] text-slate-600 select-none pointer-events-none">
+      <div className="absolute bottom-4 right-[190px] z-10 text-[10px] text-slate-600 select-none pointer-events-none">
         ⌘K Command Palette · Press V for Select · R for Rectangle · D for Draw
       </div>
     </div>
