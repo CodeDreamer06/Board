@@ -1,6 +1,7 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { CanvasShape, Viewport } from '../../types/canvas';
-import { Play, Loader2, ChevronDown, ChevronUp, X, Copy, Check } from 'lucide-react';
+import { useCanvas } from '../../hooks/useCanvasState';
+import { Play, Loader2, ChevronDown, ChevronUp, X, Copy, Check, Link } from 'lucide-react';
 
 interface Props {
   shape: CanvasShape;
@@ -37,13 +38,11 @@ function highlightLine(line: string): React.ReactNode[] {
   let i = 0;
 
   while (i < line.length) {
-    // Comment (// or #)
     if ((line[i] === '/' && line[i + 1] === '/') || (line[i] === '#' && (i === 0 || line[i - 1] === ' '))) {
       tokens.push(<span key={i} style={{ color: '#5c6370' }}>{line.slice(i)}</span>);
       break;
     }
 
-    // Strings
     if (line[i] === '"' || line[i] === "'" || line[i] === '`') {
       const quote = line[i];
       let j = i + 1;
@@ -57,7 +56,6 @@ function highlightLine(line: string): React.ReactNode[] {
       continue;
     }
 
-    // Numbers
     if (/\d/.test(line[i]) && (i === 0 || /[\s,([{:=<>+\-*/]/.test(line[i - 1]))) {
       let j = i;
       while (j < line.length && /[\d.xXa-fA-F_]/.test(line[j])) j++;
@@ -66,7 +64,6 @@ function highlightLine(line: string): React.ReactNode[] {
       continue;
     }
 
-    // Words
     if (/[a-zA-Z_]/.test(line[i])) {
       let j = i;
       while (j < line.length && /[a-zA-Z0-9_]/.test(line[j])) j++;
@@ -87,8 +84,6 @@ function highlightLine(line: string): React.ReactNode[] {
   return tokens;
 }
 
-// ──────────────────── Languages ────────────────────
-
 const LANGUAGES = [
   { id: 'javascript', label: 'JavaScript', color: '#f59e0b' },
   { id: 'typescript', label: 'TypeScript', color: '#3b82f6' },
@@ -101,23 +96,23 @@ const LANGUAGES = [
   { id: 'cpp', label: 'C++', color: '#6366f1' },
 ];
 
-// ──────────────────── Component ────────────────────
-
 export const CodeBlock: React.FC<Props> = ({ shape, viewport, onUpdate, onClose }) => {
+  const ctx = useCanvas();
   const [code, setCode] = useState(shape.code || '// Write your code here\n');
   const [language, setLanguage] = useState(shape.language || 'javascript');
   const [output, setOutput] = useState(shape.codeOutput || '');
   const [isRunning, setIsRunning] = useState(false);
   const [showOutput, setShowOutput] = useState(!!shape.codeOutput);
   const [showLangPicker, setShowLangPicker] = useState(false);
+  const [showChainPicker, setShowChainPicker] = useState(false);
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLPreElement>(null);
 
   const screenX = shape.x * viewport.zoom + viewport.x;
   const screenY = shape.y * viewport.zoom + viewport.y;
-  const screenW = Math.max(shape.width * viewport.zoom, 300);
-  const screenH = Math.max(shape.height * viewport.zoom, 200);
+  const screenW = Math.max(shape.width * viewport.zoom, 320);
+  const screenH = Math.max(shape.height * viewport.zoom, 220);
 
   const handleScroll = useCallback(() => {
     if (textareaRef.current && highlightRef.current) {
@@ -147,21 +142,53 @@ export const CodeBlock: React.FC<Props> = ({ shape, viewport, onUpdate, onClose 
     }
   }, [code, handleBlur, onClose]);
 
+  // Execute Code Logic
   const executeCode = async () => {
     setIsRunning(true);
     setShowOutput(true);
     setOutput('Running...\n');
 
+    // ── Pipeline data injection ──
+    // Find if another block chains to this block
+    const upstreamBlock = ctx.shapes.find(s => s.type === 'code' && s.replChainId === shape.id);
+    let injectedCode = '';
+
+    if (upstreamBlock && upstreamBlock.codeOutput) {
+      // Extract stdout part of the output (exclude status/time info at the end)
+      const lines = upstreamBlock.codeOutput.split('\n');
+      const dataLines = lines.filter(l => !l.startsWith('⏱') && !l.startsWith('>'));
+      const cleanData = dataLines.join('\n').trim();
+
+      if (language === 'javascript' || language === 'typescript') {
+        injectedCode = `const input_data = ${JSON.stringify(cleanData)};\n`;
+      } else if (language === 'python') {
+        injectedCode = `input_data = ${JSON.stringify(cleanData)}\n`;
+      } else {
+        injectedCode = `/* input_data: ${cleanData} */\n`;
+      }
+    }
+
+    const finalCodeToRun = injectedCode + code;
+
     try {
       const tauri = (window as any).__TAURI__;
       if (tauri?.invoke) {
-        const result = await tauri.invoke('execute_code', { language, code });
+        const result = await tauri.invoke('execute_code', { language, code: finalCodeToRun });
         let out = '';
         if (result.stdout) out += result.stdout;
         if (result.stderr) out += (out ? '\n' : '') + result.stderr;
         out += `\n⏱ ${result.elapsed_ms}ms | exit: ${result.exit_code}`;
         setOutput(out);
         onUpdate({ codeOutput: out });
+
+        // Trigger downstream block in pipeline if configured
+        if (shape.replChainId) {
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('devboard-execute-code', {
+              detail: { shapeId: shape.replChainId }
+            }));
+          }, 100);
+        }
       } else {
         setOutput('⚠ Code execution requires the DevBoard desktop app.\nRun `cargo tauri dev` to start with Tauri.');
       }
@@ -172,6 +199,18 @@ export const CodeBlock: React.FC<Props> = ({ shape, viewport, onUpdate, onClose 
     }
   };
 
+  // Listen for pipeline execute triggers
+  useEffect(() => {
+    const handleExecuteTrigger = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail?.shapeId === shape.id) {
+        executeCode();
+      }
+    };
+    window.addEventListener('devboard-execute-code', handleExecuteTrigger);
+    return () => window.removeEventListener('devboard-execute-code', handleExecuteTrigger);
+  }, [shape.id, code, language, ctx.shapes]);
+
   const copyCode = () => {
     navigator.clipboard.writeText(code);
     setCopied(true);
@@ -179,6 +218,8 @@ export const CodeBlock: React.FC<Props> = ({ shape, viewport, onUpdate, onClose 
   };
 
   const currentLang = LANGUAGES.find(l => l.id === language) || LANGUAGES[0];
+  const otherCodeBlocks = ctx.shapes.filter(s => s.type === 'code' && s.id !== shape.id);
+  const chainedToBlock = ctx.shapes.find(s => s.id === shape.replChainId);
   const lines = code.split('\n');
 
   return (
@@ -196,6 +237,7 @@ export const CodeBlock: React.FC<Props> = ({ shape, viewport, onUpdate, onClose 
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 shrink-0" style={{ backgroundColor: '#181825' }}>
         <div className="flex items-center gap-2">
+          {/* Language Selector */}
           <div className="relative">
             <button
               onClick={() => setShowLangPicker(!showLangPicker)}
@@ -217,6 +259,42 @@ export const CodeBlock: React.FC<Props> = ({ shape, viewport, onUpdate, onClose 
                   >
                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: lang.color }} />
                     {lang.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Pipeline Chaining Selector */}
+          <div className="relative">
+            <button
+              onClick={() => setShowChainPicker(!showChainPicker)}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold border transition-colors ${
+                shape.replChainId
+                  ? 'bg-indigo-600/20 border-indigo-500 text-indigo-400'
+                  : 'border-slate-700 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Link className="w-3 h-3" />
+              {chainedToBlock ? `Pipeline → Code Block` : 'Chain Block'}
+            </button>
+            {showChainPicker && (
+              <div className="absolute top-full left-0 mt-1 py-1 rounded-lg shadow-xl z-50 min-w-[180px]"
+                style={{ backgroundColor: '#1e1e2e', border: '1px solid #313244' }}>
+                <button
+                  onClick={() => { onUpdate({ replChainId: undefined }); setShowChainPicker(false); }}
+                  className="w-full text-left px-3 py-1.5 text-xs text-rose-400 hover:bg-white/5"
+                >
+                  Unlink Chain
+                </button>
+                {otherCodeBlocks.map(block => (
+                  <button key={block.id}
+                    onClick={() => { onUpdate({ replChainId: block.id }); setShowChainPicker(false); }}
+                    className={`w-full text-left px-3 py-1.5 text-xs hover:bg-white/5 ${
+                      block.id === shape.replChainId ? 'text-white font-bold' : 'text-slate-400'
+                    }`}
+                  >
+                    Link to {block.language?.toUpperCase() || 'Block'} ({block.id.slice(-4)})
                   </button>
                 ))}
               </div>

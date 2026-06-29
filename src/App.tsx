@@ -8,6 +8,7 @@ import { PresenceBar } from './components/collaboration/PresenceBar';
 import { RemoteCursors } from './components/collaboration/RemoteCursors';
 import { RoomManager } from './components/collaboration/RoomManager';
 import { CodeBlock } from './components/codeblock/CodeBlock';
+import { ApiTester } from './components/apicard/ApiTester';
 import { BoardDashboard } from './components/dashboard/BoardDashboard';
 import { DiagramGenerator } from './components/diagrammer/DiagramGenerator';
 import { StyleSettings } from './components/style/StyleSettings';
@@ -30,6 +31,17 @@ function MainEditor() {
   const activeCodeShape = editingCodeBlockId
     ? ctx.shapes.find(s => s.id === editingCodeBlockId)
     : selectedCodeShape;
+
+  // Track API tester overlay
+  const [editingApiCardId, setEditingApiCardId] = useState<string | null>(null);
+
+  // Find API shapes that are selected
+  const apiShapes = ctx.shapes.filter(s => s.type === 'apiCard');
+  const selectedApiShape = apiShapes.find(s => ctx.selectedIds.includes(s.id));
+
+  const activeApiShape = editingApiCardId
+    ? ctx.shapes.find(s => s.id === editingApiCardId)
+    : selectedApiShape;
 
   // UI modal states
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
@@ -221,6 +233,17 @@ function MainEditor() {
           viewport={viewport}
           onUpdate={(updates) => ctx.updateShape(activeCodeShape.id, updates)}
           onClose={() => setEditingCodeBlockId(null)}
+        />
+      )}
+
+      {/* API Card Tester Overlays */}
+      {activeApiShape && (
+        <ApiTester
+          key={activeApiShape.id}
+          shape={activeApiShape}
+          viewport={viewport}
+          onUpdate={(updates) => ctx.updateShape(activeApiShape.id, updates)}
+          onClose={() => setEditingApiCardId(null)}
         />
       )}
 

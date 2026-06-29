@@ -57,6 +57,15 @@ export interface CanvasShape {
   httpMethod?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   apiPath?: string;
   apiDescription?: string;
+  httpHeaders?: string;
+  httpBody?: string;
+  httpResponse?: string;
+  httpStatus?: number;
+  httpRunning?: boolean;
+
+  // REPL pipelines
+  replChainId?: string;
+  replEnvironment?: string;
 
   // Server Block
   serverType?: 'server' | 'database' | 'client' | 'loadbalancer' | 'queue' | 'cache' | 'cdn' | 'firewall';

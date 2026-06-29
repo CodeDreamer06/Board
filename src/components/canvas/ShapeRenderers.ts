@@ -114,6 +114,25 @@ export function renderApiCard(ctx: CanvasRenderingContext2D, shape: CanvasShape,
   ctx.fillStyle = theme === 'dark' ? '#94a3b8' : '#64748b';
   ctx.font = '11px Inter, sans-serif';
   ctx.fillText(shape.apiDescription || 'Endpoint description', x + 12, y + 50);
+
+  // Status and response preview
+  if (shape.httpStatus) {
+    const statusColor = shape.httpStatus >= 200 && shape.httpStatus < 300 ? '#22c55e' : '#ef4444';
+    ctx.fillStyle = statusColor;
+    ctx.font = 'bold 10px "JetBrains Mono", monospace';
+    ctx.fillText(`${shape.httpStatus} STATUS`, x + 12, y + height - 22);
+
+    if (shape.httpResponse) {
+      ctx.fillStyle = theme === 'dark' ? '#64748b' : '#94a3b8';
+      ctx.font = '9px "JetBrains Mono", monospace';
+      const cleanResp = shape.httpResponse.replace(/\s+/g, ' ').slice(0, 30);
+      ctx.fillText(cleanResp, x + 80, y + height - 22);
+    }
+  } else if (shape.httpRunning) {
+    ctx.fillStyle = '#f59e0b';
+    ctx.font = 'italic 10px "JetBrains Mono", monospace';
+    ctx.fillText('Sending Request...', x + 12, y + height - 22);
+  }
 }
 
 // ──────────────────── Server Block Renderer ────────────────────
